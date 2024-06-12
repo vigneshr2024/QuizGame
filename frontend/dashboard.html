@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tech Quiz</title>
+    <link
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/sweetalert2@10/dist/sweetalert2.min.css"
+    />
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10/dist/sweetalert2.all.min.js"></script>
+  </head>
+  <style>
+    .leaderboard {
+      display: block;
+    }
+
+    .leaderboard.disabled {
+      display: none;
+    }
+
+    #leaderboard-body tr:first-child {
+      background-color: rgb(165, 252, 165);
+      font-weight: bold;
+    }
+
+    #leaderboard-body tr:nth-child(2) {
+      background-color: rgb(255, 162, 162);
+      font-weight: bold;
+    }
+
+    .timer {
+      position: fixed;
+      top: 45%;
+      left: 25%;
+      font-size: 15em;
+      text-align: center;
+      font-family: "Courier New", Courier, monospace;
+      z-index: 1000;
+      font-weight: bold;
+    }
+
+    #start-quiz {
+      margin-top: 20px;
+      margin-left: 20px;
+      margin-bottom: 20px;
+    }
+
+    h3 {
+      font-weight: bold;
+      font-family: monospace;
+    }
+
+    #end-quiz {
+      margin-top: 20px;
+      margin-left: 20px;
+      margin-bottom: 20px;
+    }
+
+    #show-result {
+      margin-top: 20px;
+      margin-left: 20px;
+      margin-bottom: 20px;
+    }
+
+    #signout {
+      margin-top: 20px;
+      margin-left: 20px;
+      margin-bottom: 20px;
+    }
+
+    .form-control {
+      font-weight: bold;
+    }
+
+    @media (max-width: 768px) {
+      .timer {
+        top: 10px;
+        right: 10px;
+        left: auto;
+        font-size: 3em;
+        width: auto;
+        height: auto;
+      }
+
+      .d-flex .btn {
+        margin-left: 10px;
+        margin-right: 10px;
+        flex: 1;
+      }
+
+      .col-md-6 {
+        margin-top: 20px;
+      }
+
+      .row.align-items-center.mb-3 > .col-md-3 {
+        margin-bottom: 15px;
+      }
+
+      .col-md-6.offset-md-6 {
+        margin-top: 20px;
+        margin-left: 0;
+      }
+    }
+
+    @media (max-width: 576px) {
+      .d-flex {
+        flex-direction: row;
+        align-items: center;
+      }
+
+      .d-flex .btn {
+        width: 50%;
+        margin-left: 0;
+        margin-right: 0;
+        margin-bottom: 1px;
+      }
+
+      .timer {
+        font-size: 2em;
+      }
+
+      .col-md-6 {
+        margin-top: 0%;
+        margin-left: 0%;
+      }
+    }
+  </style>
+
+  <body class="body" style="background-color: aliceblue">
+    <div class="container">
+      <h3 class="text-center" style="margin-top: 5px">
+        Tech Quiz
+        <i
+          class="fas fa-lightbulb animate__animated animate__flash"
+          style="color: darkorange"
+        ></i>
+      </h3>
+
+      <!-- Language Dropdown, Timer, Start and End Quiz Buttons -->
+      <div class="row align-items-center mb-3">
+        <div class="col-md-3">
+          <select class="form-control" id="language" onchange="changeValues()">
+            <option value="" disabled selected>Select program language</option>
+            <option value="java">JAVA</option>
+            <option value="node.js">NODE JS</option>
+            <option value="dotnet">DOT.NET</option>
+            <option value="python">PYTHON</option>
+            <option value="vannila.js">VANILLA JS</option>
+            <option value="springboot">SPRINGBOOT</option>
+            <option value="angular">ANGULAR</option>
+            <option value="react.js">REACT JS</option>
+            <option value="azure">AZURE</option>
+            <option value="aws">AWS</option>
+            <option value="gcp">GCP</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <div
+            class="d-flex justify-content-between"
+            style="margin-left: 150px"
+          >
+            <button
+              class="btn btn-success"
+              id="start-quiz"
+              onclick="submitValue()"
+            >
+              Start
+            </button>
+            <button class="btn btn-danger" id="end-quiz" onclick="endQuiz()">
+              End
+            </button>
+            <button
+              class="btn btn-primary"
+              id="show-result"
+              onclick="showQuizResult()"
+            >
+              Result
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Team Details Form -->
+      <div class="col-md-6">
+        <h3>Team A</h3>
+        <div class="form-group">
+          <input
+            type="text"
+            class="form-control"
+            id="teamA-players"
+            placeholder="Enter player names"
+            style="max-width: 75%"
+          />
+        </div>
+      </div>
+      <div class="col-md-6">
+        <h3>Team B</h3>
+        <div class="form-group">
+          <input
+            type="text"
+            class="form-control"
+            id="teamB-players"
+            placeholder="Enter player names"
+            style="max-width: 75%"
+          />
+        </div>
+      </div>
+    </div>
+    <!-- Leaderboard -->
+    <div
+      class="col-md-6 offset-md-6 animate__animated animate__fadeIn"
+      style="margin-top: -15%; margin-left: 50%"
+    >
+      <div class="leaderboard mt-4" id="leaderboard">
+        <h3>
+          <i
+            class="fas fa-trophy animate__animated animate__bounceIn"
+            style="color: chocolate; font-size: 25px"
+          ></i>
+          Leaderboard
+        </h3>
+        <table class="table table-striped">
+          <thead>
+            <tr style="background-color: aliceblue">
+              <th>
+                <i
+                  class="fas fa-medal animate__animated animate__bounceIn"
+                  style="color: crimson"
+                ></i>
+                Rank
+              </th>
+              <th>
+                <i
+                  class="fas fa-users-cog animate__animated animate__bounceIn"
+                  style="color: orangered"
+                ></i>
+                Team
+              </th>
+              <th>
+                <i
+                  class="fas fa-users animate__animated animate__bounceIn"
+                  style="color: darkgoldenrod"
+                ></i>
+                Players
+              </th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div
+      class="col-md-3 offset-md-9"
+      id="fixed-position"
+      style="margin-left: 50%; position: fixed"
+    >
+      <div class="timer" id="timer" style="position: fixed">05:00</div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+    <script src="public/js/quiz.js"></script>
+    <script>
+      const game_id = Number(new Date());
+      const socket = io();
+      function changeValues() {
+        let selectValues = document.getElementById("language").value;
+        if (selectValues != "") {
+          socket.emit("msg", { language: selectValues });
+        }
+      }
+      // Function to handle disconnection
+      function handleDisconnect() {
+        console.log("log.........");
+        stopTimer();
+      }
+      function endQuiz() {
+        socket.emit("end_quize", { message: 89687 });
+        console.log("hai");
+        socket.disconnect();
+      }
+      function submitValue() {
+        let play1 = document.getElementById("teamA-players").value;
+        let play2 = document.getElementById("teamB-players").value;
+        let language = document.getElementById("language").value;
+        console.log(play1);
+        console.log(play2);
+        if (play1 != "" && play2 != "" && language != "" && game_id != "") {
+          socket.emit("gameStart", {
+            teamaplayers: play1,
+            teambplayers: play2,
+            language: language,
+            game_id: game_id,
+          });
+        }
+
+        const dataObject = {
+          teama_playername: play1,
+          teamb_playername: play2,
+          language: language,
+          game_id: game_id,
+        };
+
+        apiCallForGame(dataObject);
+      }
+      // socket.on('disconnect', handleDisconnect);
+
+      function apiCallForGame(data) {
+        // Define the data you want to send
+        const postData = data;
+
+        // Make the POST request
+        fetch("http://192.168.12.83:3001/api/game", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(postData),
+        })
+          .then((response) => {
+            // Check if the request was successful
+            if (!response.ok) {
+              throw new Error("Network response was not ok");
+            }
+            console.log(response.json);
+          })
+          .then((data) => {
+            // Handle the response data
+            console.log("Response:", data);
+          })
+          .catch((error) => {
+            // Handle any errors that occurred during the fetch
+            console.error("Error:", error);
+          });
+      }
+
+      async function showQuizResult() {
+        console.log("game_id", game_id);
+        try {
+          var url = `http://192.168.12.83:3001/api/results/${game_id}`;
+          const response = await fetch(url);
+
+          if (!response.ok) {
+            throw new Error("Network response was not ok");
+          }
+
+          const data = await response.text();
+          let winnerName = data;
+
+          if (winnerName == "A") {
+            winnerName = document.getElementById("teamA-players").value;
+          } else if (winnerName == "B") {
+            winnerName = document.getElementById("teamB-players").value;
+          } else {
+            winnerName = "Draw";
+          }
+
+          Swal.fire({
+            icon: "info",
+            title: `Winner: ${winnerName}`,
+            // html: `Winner: ${winnerName}`,
+            timer: 30000,
+            timerProgressBar: true,
+            showConfirmButton: false,
+          });
+        } catch (error) {
+          console.error("Error:", error);
+        }
+      }
+
+      async function leaderboard() {
+        try {
+          const url = `http://192.168.12.83:3001/api/leader-board/${game_id}`;
+          console.log("url", url);
+          const response = await fetch(url);
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log("Response:", data);
+            displayLeaderboard(data);
+          } else {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
+        } catch (error) {
+          console.error("Error:", error);
+        }
+      }
+
+      function displayLeaderboard(data) {
+        const leaderboardBody = document.getElementById("leaderboard-body");
+
+        // Clear any existing rows
+        leaderboardBody.innerHTML = "";
+
+        // Populate table with data
+        data.forEach((rowData) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+                    <td>${rowData.s_no}</td>
+                    <td>${rowData.team}</td>
+                    <td>${rowData.teamaplayer || rowData.teambplayer}</td>
+                    <td>${rowData.points}</td>
+                `;
+          leaderboardBody.appendChild(row);
+        });
+      }
+
+      const myTimeout = setInterval(leaderboard, 5000);
+      console.log(myTimeout);
+    </script>
+  </body>
+</html>

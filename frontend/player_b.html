@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Player B</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    /* Preserve the existing styles */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background-color: #f4f4f4;
+    }
+
+    .container {
+      padding: 20px;
+      max-width: 700px;
+      margin: 50px auto;
+      background-color: rgba(255, 255, 255, 0.9);
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .dev-style {
+      font-weight: bold;
+    }
+
+    .player-info-wrapper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 10px 20px;
+      background-color: orangered;
+      color: white;
+      border-top-left-radius: 10px;
+      border-top-right-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .player-info-wrapper .name-tech-wrapper {
+      display: flex;
+      align-items: center;
+    }
+
+    .player-info-wrapper #playerName {
+      font-size: 18px;
+      font-weight: bold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex-grow: 1;
+      min-width: 0;
+    }
+
+    .player-info-wrapper #technology {
+      font-size: 18px;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    .timer {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    #time {
+      font-size: 20px;
+      color: #007bff;
+    }
+
+    #questionText {
+      font-size: 18px;
+      margin-bottom: 20px;
+    }
+
+    .option-container {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .option-wrapper {
+      cursor: pointer;
+      padding: 10px;
+      border-radius: 5px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .option-wrapper:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .option-label {
+      font-weight: bold;
+      margin-right: 10px;
+    }
+
+    .option-text {
+      font-size: 16px;
+    }
+
+    .selected {
+      background-color: #28a745;
+      color: #fff;
+    }
+
+    #nextBtn,
+    #emitterBtn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin-top: 20px;
+      font-size: 16px;
+      color: #fff;
+      background-color: #007bff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.2s ease;
+    }
+
+    #nextBtn:hover,
+    #emitterBtn:hover {
+      background-color: #0056b3;
+      transform: translateY(-2px);
+    }
+
+    body {
+      overflow-x: hidden;
+    }
+
+    .container {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .player-info-wrapper span {
+      margin-right: 10px;
+    }
+
+    #nextBtn {
+      display: flex;
+      align-items: center;
+    }
+
+    #nextBtn i {
+      margin-right: 5px;
+    }
+
+    #nextBtn:disabled {
+      animation: shake 0.5s ease;
+    }
+
+    @keyframes shake {
+      0% {
+        transform: translateX(0);
+      }
+
+      25% {
+        transform: translateX(-5px);
+      }
+
+      50% {
+        transform: translateX(5px);
+      }
+
+      75% {
+        transform: translateX(-5px);
+      }
+
+      100% {
+        transform: translateX(0);
+      }
+    }
+
+    .fa-clock::before {
+      font-size: 20px;
+      color: orangered;
+    }
+
+    #techDropdown {
+      margin-top: 20px;
+      padding: 10px;
+      width: 100%;
+      font-size: 16px;
+      display: block;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      background-color: #fff;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+
+  <body>
+    <div class="container">
+      <div class="player-info-wrapper">
+        <div class="name-tech-wrapper">
+          <span><i class="fa-solid fa-users"></i></span>
+          <span id="playerName" class="dev-style">{playerName}</span>
+        </div>
+        <div class="name-tech-wrapper">
+          <span><i class="fas fa-code"></i></span>
+          <span id="technology" class="dev-style">{technology}</span>
+        </div>
+      </div>
+      <div class="timer">
+        <i id="clockIcon" class="fas fa-clock timer-icon"></i>
+        <p id="time">00:00</p>
+      </div>
+
+      <div class="question">
+        <p id="questionText"></p>
+        <div id="options" class="option-container"></div>
+      </div>
+      <button id="nextBtn" disabled onclick="nextQuestion()">
+        Next Question
+      </button>
+      <div id="digitalTimer"></div>
+    </div>
+    <script>
+      var socket = io();
+      var player1;
+      var selectedTechnology;
+      var datas = [];
+      var mergedData;
+
+      socket.on("disconnect", (data) => {
+        console.log("data", data);
+        stopTimer();
+        socket.disconnect();
+      });
+      function stopTimer() {
+        clearInterval(timerInterval);
+        timerRunning = false; // Set timer status to stopped
+      }
+
+      socket.on("newmsg", function (data) {
+        console.log(data);
+        selectedTechnology = data.language;
+        if (selectedTechnology) {
+          document.getElementById("technology").innerText = data.language;
+          fetchQuestions(data.language);
+          displayQuestion();
+        }
+      });
+      var game_id;
+      socket.on("newGameStart", function (data) {
+        if (data.teambplayers) {
+          player1 = data.teambplayers;
+          document.getElementById("playerName").innerText = player1;
+          startTimer();
+        }
+        if (data.language) {
+          document.getElementById("technology").innerText = data.language;
+        }
+        game_id = data.game_id;
+        console.log(game_id);
+        selectedTechnology = data.language;
+      });
+
+      // Get references to DOM elements
+      const playerNameSpan = document.getElementById("playerName");
+      const technologySpan = document.getElementById("technology");
+      const timeDisplay = document.getElementById("time");
+      const nextBtn = document.getElementById("nextBtn");
+      const questionText = document.getElementById("questionText");
+      const optionsContainer = document.getElementById("options");
+      const techDropdown = document.getElementById("techDropdown");
+
+      let timerInterval;
+      let timeInSeconds = 0;
+      let currentQuestionIndex = 0;
+      let fetchedQuestions = [];
+
+      // Hide elements initially
+      playerNameSpan.style.display = "none";
+      technologySpan.style.display = "none";
+      timeDisplay.style.display = "none";
+      nextBtn.style.display = "none";
+      questionText.style.display = "none";
+      optionsContainer.style.display = "none";
+
+      // Function to start the timer
+      function startTimer() {
+        // Clear any existing intervals to avoid multiple intervals running
+        if (timerInterval) {
+          clearInterval(timerInterval);
+        }
+
+        timeInSeconds = 300; // 5 minutes
+        updateTimeDisplay();
+
+        // Set the interval to update the time every second
+        timerInterval = setInterval(() => {
+          if (timeInSeconds > 0) {
+            timeInSeconds--;
+            updateTimeDisplay();
+            nextBtn.disabled = false; // Enable the next question button when timer starts
+          } else {
+            clearInterval(timerInterval);
+            alert("Time's up!");
+            window.location.reload();
+          }
+        }, 1000);
+      }
+
+      // Function to update the time display
+      function updateTimeDisplay() {
+        const minutes = Math.floor(timeInSeconds / 60)
+          .toString()
+          .padStart(2, "0");
+        const seconds = (timeInSeconds % 60).toString().padStart(2, "0");
+        timeDisplay.innerHTML = `${minutes}:${seconds}`;
+      }
+
+      // Function to handle next question button click
+      function nextQuestion() {
+        const currentQuestion = fetchedQuestions[currentQuestionIndex];
+
+        // Check if an option is selected for the current question
+        if (!currentQuestion.hasOwnProperty("chosenAnswer")) {
+          // Show a more informative message using a modal or a non-intrusive notification
+          console.warn("Please select an option before proceeding.");
+          // Add animation to the next button to indicate missing selection
+          nextBtn.disabled = true;
+          setTimeout(() => {
+            nextBtn.disabled = false;
+          }, 500); // Enable button after animation duration
+          return;
+        }
+
+        // Save the current question's data to local storage
+        sendQuestionDataToDashboard(currentQuestion);
+
+        // Increment the question index
+        currentQuestionIndex++;
+
+        // Check if there are more questions
+        if (currentQuestionIndex < fetchedQuestions.length) {
+          displayQuestion();
+        } else {
+          alert("End of quiz!");
+          clearInterval(timerInterval);
+          window.location.reload(); // Reload the page after user clicks "OK"
+        }
+      }
+
+      // Function to display the question and options
+      function displayQuestion() {
+        if (fetchedQuestions.length === 0) {
+          console.error("No questions fetched.");
+          return;
+        }
+
+        const currentQuestion = fetchedQuestions[currentQuestionIndex];
+
+        if (
+          !currentQuestion ||
+          typeof currentQuestion !== "object" ||
+          !currentQuestion.hasOwnProperty("question")
+        ) {
+          console.error("Invalid question object:", currentQuestion);
+          return;
+        }
+
+        // Display the question text
+        questionText.textContent = currentQuestion.question;
+
+        // Log fetched data for debugging
+        console.log("Fetched question:", currentQuestion);
+
+        // Clear previous options
+        optionsContainer.innerHTML = "";
+
+        // Display the options
+        const optionKeys = ["a", "b", "c", "d"];
+
+        optionKeys.forEach((optionKey, index) => {
+          if (currentQuestion.hasOwnProperty(optionKey)) {
+            const optionText = currentQuestion[optionKey];
+
+            const optionWrapper = document.createElement("div");
+            optionWrapper.classList.add("option-wrapper");
+
+            const optionLabel = document.createElement("span");
+            optionLabel.textContent = String.fromCharCode(97 + index) + "."; // Convert index to corresponding letter (a, b, c, d)
+            optionLabel.classList.add("option-label");
+
+            const optionContent = document.createElement("span");
+            optionContent.textContent = optionText;
+            optionContent.classList.add("option-text");
+
+            optionWrapper.appendChild(optionLabel);
+            optionWrapper.appendChild(optionContent);
+
+            optionWrapper.addEventListener("click", () =>
+              chooseAnswer(optionWrapper, optionKey)
+            );
+
+            optionsContainer.appendChild(optionWrapper);
+
+            // Highlight the selected option if it was chosen before
+            if (currentQuestion.chosenAnswer === optionKey) {
+              optionWrapper.classList.add("selected");
+            }
+          }
+        });
+
+        // Show question and options
+        questionText.style.display = "block";
+        optionsContainer.style.display = "block";
+      }
+
+      function chooseAnswer(optionWrapper, optionKey) {
+        const currentQuestion = fetchedQuestions[currentQuestionIndex];
+        currentQuestion.chosenAnswer = optionKey; // Store the option key (a, b, c, d)
+
+        const optionWrappers =
+          optionsContainer.querySelectorAll(".option-wrapper");
+        optionWrappers.forEach((wrapper) => {
+          wrapper.classList.remove("selected");
+        });
+
+        optionWrapper.classList.add("selected");
+      }
+
+      // Function to send question data to the dashboard
+      async function sendQuestionDataToDashboard() {
+        const currentQuestion = fetchedQuestions[currentQuestionIndex];
+        console.log("currentQuestion", currentQuestion);
+        const key = `question_${currentQuestionIndex}`;
+        var id = currentQuestion._id;
+        var answer = currentQuestion.chosenAnswer;
+        let is_correct = "false"; // Default value
+
+        try {
+          var url = `http://192.168.12.83:3001/api/validate/${id}/${answer}`;
+          const response = await fetch(url);
+
+          if (!response.ok) {
+            throw new Error("Network response was not ok");
+          }
+
+          const data = await response.text();
+          is_correct = data;
+
+          const dataObject = {
+            game_id: game_id,
+            team: "b",
+            question_id: currentQuestion._id,
+            user_option: currentQuestion.chosenAnswer,
+            is_correct: is_correct,
+          };
+
+          apiCallForGameLog(dataObject); // Call the function directly
+        } catch (error) {
+          console.error("Error:", error);
+        }
+
+        // apiCallForGameLog(dataObject);
+        localStorage.setItem(key, JSON.stringify(dataObject));
+        console.log(
+          `Stored data for question ${currentQuestionIndex}:`,
+          dataObject
+        );
+      }
+
+      function apiCallForGameLog(data) {
+        // Define the data you want to send
+        const postData = data;
+
+        // Make the POST request
+        fetch("http://192.168.12.83:3001/api/game-log", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(postData),
+        })
+          .then((response) => {
+            // Check if the request was successful
+            if (!response.ok) {
+              throw new Error("Network response was not ok");
+            }
+            console.log(response.json);
+            // Parse the response JSON
+            // return response.json();
+          })
+          .then((data) => {
+            // Handle the response data
+            console.log("Response:", data);
+          })
+          .catch((error) => {
+            // Handle any errors that occurred during the fetch
+            console.error("Error:", error);
+          });
+      }
+
+      // Function to fetch questions from MongoDB based on the selected technology
+      function fetchQuestions(selectedTechnology) {
+        // Create a new XMLHttpRequest object
+        var xhr = new XMLHttpRequest();
+        // Define the request URL
+        var url = `http://192.168.12.83:3001/api/questions/team-b/${selectedTechnology}`;
+
+        // Configure the request
+        xhr.open("GET", url, true);
+
+        // Set up the onload function to handle successful responses
+        xhr.onload = function () {
+          if (xhr.status >= 200 && xhr.status < 400) {
+            // Parse the JSON response
+            var data = JSON.parse(xhr.responseText);
+            console.log("Fetched data:", data); // Log fetched data for debugging
+
+            // Transform the data format
+            fetchedQuestions = data.map((question) => ({
+              language: question.language,
+              _id: question._id,
+              question: question.question,
+              a: question.a,
+              b: question.b,
+              c: question.c,
+              d: question.d,
+            }));
+
+            displayQuestion();
+            playerNameSpan.style.display = "inline-block";
+            technologySpan.style.display = "inline-block";
+            timeDisplay.style.display = "inline-block";
+            nextBtn.style.display = "inline-block";
+          } else {
+            // Handle HTTP errors
+            console.error(
+              "Error fetching questions:",
+              xhr.status,
+              xhr.statusText
+            );
+          }
+        };
+
+        // Set up the onerror function to handle errors
+        xhr.onerror = function () {
+          console.error("Network error while fetching questions");
+        };
+
+        // Send the request
+        xhr.send();
+      }
+
+      function clearLocalStorage() {
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith("question_")) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+
+      // Function to start the emitter
+      function startEmitter() {
+        clearLocalStorage(); // Clear localStorage on emitter start
+        getPlayerData()
+          .then((data) => {
+            playerNameSpan.textContent = data.playerName;
+            technologySpan.textContent = data.technology;
+            playerNameSpan.style.display = "inline-block";
+            technologySpan.style.display = "inline-block";
+            timeDisplay.style.display = "inline-block";
+            nextBtn.style.display = "inline-block";
+            startTimer(); // Ensure this is called once
+            displayQuestion();
+          })
+          .catch((error) => {
+            console.error("Error fetching player data:", error);
+          });
+      }
+
+      // Attach the nextQuestion function to the next button click event
+      nextBtn.addEventListener("click", nextQuestion);
+    </script>
+  </body>
+</html>
